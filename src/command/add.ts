@@ -1,7 +1,9 @@
 import {
     SlashCommandBuilder,
     AutocompleteInteraction,
-    ChatInputCommandInteraction
+    ChatInputCommandInteraction,
+    MessageFlags,
+    Guild
 } from "discord.js";
 import {
     pushToGitHub
@@ -10,7 +12,7 @@ import {
     postProcessGif
 } from "../service/gifProcessing.ts";
 
-export const data = new SlashCommandBuilder()
+export const command = new SlashCommandBuilder()
 .setName("add")
 .setDescription("Add emojis to GitHub")
 .addStringOption(option => option
@@ -22,6 +24,7 @@ export const data = new SlashCommandBuilder()
     
 export interface AddedEmoji {
     name: string;
+    ext: string;
     id: string;
     animated: boolean;
     url: string;
@@ -30,102 +33,70 @@ export interface AddedEmoji {
 
 export async function execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) {
-        return interaction.reply({ content: "Guild only.", ephemeral: true });
+        return interaction.followUp({ content: "Guild only.", flags: MessageFlags.Ephemeral  });
     }
     
-    const input = interaction.options.getString("emojis", true);
-    
-    const names = [...input.matchAll(/:([\w-]+):/g)].map(m => m[1]);
-    
-    if (!names.length) {
-        return interaction.reply({
-            content: "No emoji names found.",
-            ephemeral: true
-        });
-    }
-    
+    const name = interaction.options.getString("emojis", true);
     const emojis = await interaction.guild.emojis.fetch();
+    const emoji = interaction.guild.emojis.cache.find(e => e.name === name);
 
-    const added: AddedEmoji[] = [];
-    const missing: string[] = [];
+    if (!emoji) {
+        throw `${name} isn't an emoji in this server.`
+    }
     
-    for (const name of names) {
-        const emoji = interaction.guild.emojis.cache.find(e => e.name === name);
-        
-        if (!emoji) {
-            missing.push(name);
-            continue;
-        }
+    const imageUrl = emoji.imageURL(emoji.animated ? { animated: true } : { extension: "png" })!;
+    const rawImageData = await fetch(imageUrl).then(response => response.arrayBuffer());
+    const imageData = emoji.animated ? await postProcessGif(Buffer.from(rawImageData)) : Buffer.from(rawImageData);
 
-        const imageUrl = emoji.imageURL({extension: emoji.animated ? "gif" : "png"})!;
-        const rawImageData = await fetch(imageUrl).then(response => response.arrayBuffer());
-        const imageData = emoji.animated ? postProcessGif(Buffer.from(rawImageData)) : Buffer.from(rawImageData);
+    await pushToGitHub({
+        name: emoji.name!,
+        id: emoji.id,
+        animated: emoji.animated,
+        ext: emoji.animated ? "gif" : "png",
+        url: imageUrl,
+        imageData: imageData
+    }).catch(err => {
+        console.error(`Failed to push emoji ${emoji.name} to GitHub:`, err);
+        throw err
+    });
+    
+    console.log(`Added emoji ${emoji.name} to GitHub.`);
+    await interaction.followUp({content:`✅ Added ${renderEmoji(emoji)}} to GitHub.`})
+        .catch((err) => {
+            console.error(`Failed to send reply for emoji ${emoji.name}.`)
+            throw err;
+        });
+}
+    
+function renderEmoji(emoji: {
+    name: string;
+    id: string;
+    animated: boolean;
+}) {
+    return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
+}
 
-        added.push({
-            name: emoji.name!,
-            id: emoji.id,
-            animated: emoji.animated,
-            url: imageUrl,
-            imageData: imageData
-        });
-    }
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    if (!interaction.guild) return;
     
-    if (!added.length) {
-        return interaction.reply({
-            content: "None of the provided emojis exist in this server.",
-            ephemeral: true
-        });
-    }
+    const focused = interaction.options.getFocused();
     
-    await pushToGitHub(added);
-    
-    await interaction.reply({
-        content:
-        `✅ Added ${added.length} emojis:\n` +
-        added.map(renderEmoji).join(" ")
-        + (missing.length ? 
-            `\n\n⚠️ Missing:\n${missing.map(n => `:${n}:`).join(" ")}`
-            : "")
-        });
-    }
-    
-    function renderEmoji(emoji: {
-        name: string;
-        id: string;
-        animated: boolean;
-    }) {
-        return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`;
-    }
-    
-    export async function autocomplete(interaction: AutocompleteInteraction) {
-        if (!interaction.guild) return;
-        
-        const focused = interaction.options.getFocused();
-        
-        // Split on spaces, autocomplete only the last token
-        const parts = focused.split(/\s+/);
-        const current = parts[parts.length - 1];
-        
-        if (!current.startsWith(":")) {
-            return interaction.respond([]);
-        }
-        
-        const query = current.slice(1).toLowerCase(); // strip leading :
-        
-        const emojis = await interaction.guild.emojis.fetch();
-        
-        const suggestions = emojis
-        .filter(e => e.name?.toLowerCase().startsWith(query))
-        .first(25) // Discord hard limit
-        .map(e => ({
-            name: `:${e.name}:`,
-            value: replaceLastToken(parts, `:${e.name}:`)
-        }));
-        
+    const suggestions = getSuggestions(interaction.guild, focused);
+
+    if (suggestions.length === 0) {
+        await interaction.guild.emojis.fetch()
+        await interaction.respond(getSuggestions(interaction.guild, focused));
+    } else {
         await interaction.respond(suggestions);
     }
-    
-    function replaceLastToken(parts: string[], replacement: string): string {
-        return [...parts.slice(0, -1), replacement].join(" ");
-    }
-    
+}    
+
+function getSuggestions(guild: Guild, input: string) {
+    return guild.emojis.cache
+    .filter(e => e.name?.toLowerCase().startsWith(input.toLowerCase()))
+    .first(25) // Discord hard limit
+    .map(e => ({
+        name: e.name,
+        value: e.name
+    }));
+}

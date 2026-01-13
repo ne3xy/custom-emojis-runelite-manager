@@ -1,10 +1,16 @@
-import { MagickFormat, MagickImageCollection } from '@imagemagick/magick-wasm';
+import sharp from 'sharp';
 
-export function postProcessGif(gif: Buffer): Buffer {
-    MagickImageCollection.create(gif).coalesce();
-    const collection = MagickImageCollection.create(gif);
-    collection.coalesce();
-    return collection.write(MagickFormat.Gif, data => {
-        return Buffer.from(data)
-    });
+export async function postProcessGif(webp: Buffer): Promise<Buffer> {
+    try {
+        const result = await sharp(webp, {pages: -1})
+            .gif({
+                colors: 255,
+                dither: 0,
+            })
+            .toBuffer();
+        return result;
+    } catch (err) {
+        console.error('Error processing GIF:', err);
+        throw err;
+    }
 }
