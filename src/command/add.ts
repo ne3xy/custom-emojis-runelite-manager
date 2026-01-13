@@ -62,12 +62,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     
     console.log(`Added emoji ${emoji.name} to GitHub.`);
     await interaction.followUp({
-        content:`✅ Added ${renderEmoji(emoji)}} to GitHub.`,
-        flags: []
+        content:`✅ Added ${renderEmoji(emoji)}} to GitHub.`
     }).catch((err) => {
         console.error(`Failed to send reply for emoji ${emoji.name}.`)
         throw err;
     });
+    try {
+        await (interaction.channel as any).send({
+            content: `✅ Added ${renderEmoji(emoji)}} to GitHub for custom-emojis plugin.`
+        });
+    } catch (err) {
+        console.error(`Failed to send message in channel ${interaction.channel} for emoji ${emoji.name}.`, err);
+    }
 }
     
 function renderEmoji(emoji: {
