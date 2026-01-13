@@ -61,11 +61,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
     
     console.log(`Added emoji ${emoji.name} to GitHub.`);
-    await interaction.followUp({content:`✅ Added ${renderEmoji(emoji)}} to GitHub.`})
-        .catch((err) => {
-            console.error(`Failed to send reply for emoji ${emoji.name}.`)
-            throw err;
-        });
+    await interaction.followUp({
+        content:`✅ Added ${renderEmoji(emoji)}} to GitHub.`,
+        flags: []
+    }).catch((err) => {
+        console.error(`Failed to send reply for emoji ${emoji.name}.`)
+        throw err;
+    });
 }
     
 function renderEmoji(emoji: {
