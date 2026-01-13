@@ -1,1 +1,2 @@
 # custom-emojis-runelite-manager
+Discord bot to support custom-emojis runelite plugin. Uploads emojis from a discord server to a github repo for the plugin on request. Converts animated webps to gifs & coalesces them.
