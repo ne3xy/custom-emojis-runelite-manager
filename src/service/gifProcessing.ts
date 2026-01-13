@@ -1,16 +1,20 @@
-import sharp from 'sharp';
+import { ImageMagick, initializeImageMagick, Magick, MagickFormat, MagickImageCollection, Quantum } from '@imagemagick/magick-wasm';
+import { readFileSync } from 'fs';
 
-export async function postProcessGif(webp: Buffer): Promise<Buffer> {
-    try {
-        const result = await sharp(webp, {pages: -1})
-            .gif({
-                colors: 255,
-                dither: 0,
-            })
-            .toBuffer();
-        return result;
-    } catch (err) {
-        console.error('Error processing GIF:', err);
-        throw err;
-    }
+const wasmLocation = 'node_modules/@imagemagick/magick-wasm/dist/magick.wasm';
+const wasmBytes = readFileSync(wasmLocation);
+initializeImageMagick(wasmBytes).then(() => {
+    console.log(Magick.imageMagickVersion);
+    console.log('Delegates:', Magick.delegates);
+    console.log('Features:', Magick.features);
+    console.log('Quantum:', Quantum.depth);
+});
+
+export function postProcessGif(webp: Buffer): Buffer {
+    return ImageMagick.readCollection(webp, image => {
+        image.coalesce();
+        return image.write(MagickFormat.Gif, data => {
+            return Buffer.from(data)
+        });
+    });
 }
