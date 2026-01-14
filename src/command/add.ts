@@ -5,8 +5,7 @@ import {
     MessageFlags,
     Guild,
     GuildEmoji,
-    Collection,
-    Snowflake
+    Collection
 } from "discord.js";
 import {
     pushToGitHub
@@ -102,7 +101,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     }
 }    
     
-function getSuggestions(guild: Guild, input: string, emojis: Collection<Snowflake, GuildEmoji>) {
+function getSuggestions(guild: Guild, input: string, emojis: Collection<string, GuildEmoji>) {
     return emojis
     .filter(e => e.name?.toLowerCase().startsWith(input.toLowerCase()))
     .first(25) // Discord hard limit
