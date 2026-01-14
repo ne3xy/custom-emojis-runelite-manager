@@ -3,7 +3,12 @@ import {
     AutocompleteInteraction,
     ChatInputCommandInteraction,
     MessageFlags,
-    Guild
+    Guild,
+    GuildEditOptions,
+    GuildEmoji,
+    Collection,
+    Collection,
+    Snowflake
 } from "discord.js";
 import {
     pushToGitHub
@@ -16,8 +21,8 @@ export const command = new SlashCommandBuilder()
 .setName("add")
 .setDescription("Add emojis to GitHub")
 .addStringOption(option => option
-    .setName("emojis")
-    .setDescription("Space-separated list of emojis")
+    .setName("emoji")
+    .setDescription("Emoji to add")
     .setRequired(true)
     .setAutocomplete(true)
 );
@@ -36,9 +41,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return interaction.followUp({ content: "Guild only.", flags: MessageFlags.Ephemeral  });
     }
     
-    const name = interaction.options.getString("emojis", true);
+    const name = interaction.options.getString("emoji", true);
     const emojis = await interaction.guild.emojis.fetch();
-    const emoji = interaction.guild.emojis.cache.find(e => e.name === name);
+    const emoji = emojis.find(e => e.name === name);
 
     if (!emoji) {
         throw `${name} isn't an emoji in this server.`
@@ -89,18 +94,18 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     
     const focused = interaction.options.getFocused();
     
-    const suggestions = getSuggestions(interaction.guild, focused);
+    const suggestions = getSuggestions(interaction.guild, focused, interaction.guild.emojis.cache);
 
     if (suggestions.length === 0) {
-        await interaction.guild.emojis.fetch()
-        await interaction.respond(getSuggestions(interaction.guild, focused));
+        const fetched = await interaction.guild.emojis.fetch()
+        await interaction.respond(getSuggestions(interaction.guild, focused, fetched));
     } else {
         await interaction.respond(suggestions);
     }
 }    
-
-function getSuggestions(guild: Guild, input: string) {
-    return guild.emojis.cache
+    
+function getSuggestions(guild: Guild, input: string, emojis: Collection<Snowflake, GuildEmoji>) {
+    return emojis
     .filter(e => e.name?.toLowerCase().startsWith(input.toLowerCase()))
     .first(25) // Discord hard limit
     .map(e => ({
