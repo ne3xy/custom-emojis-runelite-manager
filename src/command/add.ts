@@ -4,9 +4,7 @@ import {
     ChatInputCommandInteraction,
     MessageFlags,
     Guild,
-    GuildEditOptions,
     GuildEmoji,
-    Collection,
     Collection,
     Snowflake
 } from "discord.js";
