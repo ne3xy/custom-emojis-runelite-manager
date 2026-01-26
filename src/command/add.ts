@@ -94,7 +94,10 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     const suggestions = getSuggestions(interaction.guild, focused, interaction.guild.emojis.cache);
 
     if (suggestions.length === 0) {
+        const traceid = Math.random().toString(36).substring(2, 8);
+        console.log(`<${traceid}> No suggestions found for ${focused}, fetching emojis from API for autocomplete...`);
         const fetched = await interaction.guild.emojis.fetch()
+        console.log(`<${traceid}> Fetched ${fetched.size} emojis from API for autocomplete.`);
         await interaction.respond(getSuggestions(interaction.guild, focused, fetched));
     } else {
         await interaction.respond(suggestions);
