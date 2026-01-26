@@ -39,7 +39,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
     
     const name = interaction.options.getString("emoji", true);
+    const traceid = Math.random().toString(36).substring(2, 8);
+    console.log(`<${traceid}> Adding emoji ${name} from guild ${interaction.guild.name} (${interaction.guild.id})`);
     const emojis = await interaction.guild.emojis.fetch();
+    console.log(`<${traceid}> Fetched ${emojis.size} emojis from guild ${interaction.guild.name} (${interaction.guild.id})`);
     const emoji = emojis.find(e => e.name === name);
 
     if (!emoji) {
